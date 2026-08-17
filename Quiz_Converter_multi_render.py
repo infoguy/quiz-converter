@@ -107,50 +107,7 @@ HTML = """<!doctype html>
       <button type="submit">Convert &amp; Download</button>
     </form>
 
-    <h2>Quick Format Examples</h2>
-    <pre>1. Multiple choice
-a) Choice
-*b) Correct
-
-2. True/False
-*a) True
-b) False
-
-3. Multiple answers
-[ ] Option
-[*] Correct option
-
-4. Essay
-___
-
-5. Fill in the Blank
-The color of the sky is ____.
-* blue
-* Blue
-
-6. Matching
-Match each term to its definition.
-= Term One -> Definition A
-= Term Two -> Definition B
-
-7. Question with an image
-![description of the image](diagram.png)
-a) Choice
-*b) Correct
-
-8. Matching with an image
-Match each term to its definition.
-![description of the image](chart.png)
-= Term One -> Definition A
-= Term Two -> Definition B</pre>
-
     <h2>Canvas Quiz Converter Directions</h2>
-    <p style="background:#fffbeb;border:1px solid #fde68a;padding:.75rem 1rem;border-radius:.5rem;">
-      <strong>One-time setup (new machine only):</strong> this tool requires the
-      <code>text2qti</code> Python package. If conversions fail with a message about
-      <code>text2qti</code> not being installed, open a terminal and run
-      <code>pip install text2qti</code>, then restart this app.
-    </p>
     <ol>
       <li>Upload your plain text quiz file to convert it to a Canvas QTI format.</li>
       <li>If any question uses an image, select the image files at the same time as the quiz file (hold Ctrl/Cmd and click each one). The images are packaged inside the .zip.</li>
@@ -240,6 +197,19 @@ a) HDMI
 *b) DisplayPort
 c) VGA
 d) DVI</pre>
+    <p><strong>Images in the answer choices.</strong> An image can be the whole choice, or sit alongside the choice text. Put it after the <code>a)</code> / <code>[ ]</code> marker on the same line. This works for multiple choice, true/false, and multiple answers, and the correct-answer markers (<code>*</code> and <code>[*]</code>) are used exactly as they normally are:</p>
+    <pre>1. Which topology is shown?
+![network diagram](stem.png)
+*a) ![star topology](a1.png)
+b) ![ring topology](a2.png)
+c) Neither one
+
+2. Select all that apply.
+[*] ![one](m1.png)
+[ ] ![two](m2.png)
+[*] Option C with text and a picture ![three](m3.png)</pre>
+    <p>Note that a question can use images in the stem and in the choices at the same time, and choices can be mixed: some with images, some plain text. Every image named in the file has to be selected in the upload alongside the quiz <code>.txt</code>.</p>
+
     <p>Matching questions work the same way:</p>
     <pre>6. Match each medication route to its definition.
 ![chart of medication routes](routes.png)
@@ -249,6 +219,8 @@ d) DVI</pre>
     <p><strong>Rules:</strong></p>
     <ul>
       <li>Works in every question type, including matching. In a matching question the image goes in the question text line or on its own line above the pairs, never inside a pair.</li>
+      <li>Answer choices can hold images for multiple choice, true/false, and multiple answers. Keep the image on the same line as the <code>a)</code> or <code>[ ]</code> marker; a choice marker with nothing after it is not recognized as an option.</li>
+      <li>If several choices point at the same picture, upload it once and reference the same file name in each choice.</li>
       <li>Select the image files together with the quiz <code>.txt</code> file when you upload. The converter bundles them into the QTI package, and Canvas copies them into the course files folder on import.</li>
       <li>The name in the quiz text must match the image file name, including the extension.</li>
       <li>Supported: <code>.png</code>, <code>.jpg</code>, <code>.jpeg</code>, <code>.gif</code>, <code>.webp</code>, <code>.bmp</code>, <code>.svg</code>.</li>
