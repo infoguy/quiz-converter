@@ -5,7 +5,7 @@
 # Non-validation errors show a short generic message in UI, while full traceback prints to console.
 
 print("=== RUNNING QUIZ CREATOR (VALIDATION-FRIENDLY BUILD) ===")
-print("=== VERSION: TITLE-PATCH + FILL-IN-BLANK + MATCHING ORDER-PRESERVED ===")
+print("=== VERSION: TITLE-PATCH + FILL-IN-BLANK + MATCHING ORDER-PRESERVED + ANSWER FEEDBACK ===")
 
 from flask import Flask, request, jsonify, Response, render_template_string
 from pathlib import Path
@@ -29,6 +29,7 @@ if sys.platform == "win32":
     ctypes.windll.user32.ShowWindow(ctypes.windll.kernel32.GetConsoleWindow(), 0)
 
 import os
+
 IS_RENDER = "RENDER" in os.environ
 
 # Redirect stdout/stderr to a log file so errors aren't silently lost when
@@ -120,7 +121,7 @@ HTML = """<!doctype html>
     </ol>
 
     <h2>Instructions for Formatting Guide for Questions</h2>
-    <p>This tool supports <strong>Multiple Choice</strong>, <strong>True/False</strong>, <strong>Multiple Answers</strong>, <strong>Essay</strong>, <strong>Fill in the Blank</strong>, <strong>Matching</strong>, and <strong>Question Groups</strong>. Any question type can include an <strong>image</strong>. Use the exact formats shown.</p>
+    <p>This tool supports <strong>Multiple Choice</strong>, <strong>True/False</strong>, <strong>Multiple Answers</strong>, <strong>Essay</strong>, <strong>Fill in the Blank</strong>, <strong>Matching</strong>, and <strong>Question Groups</strong>. Any question type can include an <strong>image</strong> and <strong>answer feedback</strong>. Use the exact formats shown.</p>
 
     <pre>1. What is 2+3?
 a) 6
@@ -155,6 +156,76 @@ a) HDMI
 *b) DisplayPort
 c) VGA
 d) DVI</pre>
+
+    <h3>Answer Feedback</h3>
+    <p>Feedback lines let you tell the student <em>why</em> an answer was right or wrong. There are three markers, and each one goes on its own line starting at the left margin with a space after the marker:</p>
+    <table style="border-collapse:collapse;margin:1rem 0;">
+      <tr><td style="padding:.35rem .75rem .35rem 0;"><code>...</code></td><td style="padding:.35rem 0;">Feedback for whichever line sits directly above it: the question text, or a single answer choice.</td></tr>
+      <tr><td style="padding:.35rem .75rem .35rem 0;"><code>...*</code></td><td style="padding:.35rem 0;">The same feedback on every answer choice. Written once, under the question text.</td></tr>
+      <tr><td style="padding:.35rem .75rem .35rem 0;"><code>+</code></td><td style="padding:.35rem 0;">Shown to students who answered the question correctly.</td></tr>
+      <tr><td style="padding:.35rem .75rem .35rem 0;"><code>-</code></td><td style="padding:.35rem 0;">Shown to students who answered the question incorrectly.</td></tr>
+    </table>
+    <p><strong>Feedback for each answer choice.</strong> Put a <code>...</code> line directly beneath the choice it belongs to. Choices without a feedback line simply have none:</p>
+    <pre>1. Which port carries both video and audio?
+...  Think about which connector replaced DVI on modern monitors.
++    Correct. HDMI carries video and audio over one cable.
+-    Review the section on display connectors in Module 3.
+a) VGA
+...  VGA is analog and video only, so audio needs a separate cable.
+b) DVI
+...  DVI carries video only. Some versions add digital signaling, but never audio.
+*c) HDMI
+...  Right. HDMI carries digital video and audio together.
+d) PS/2
+...  PS/2 is a keyboard and mouse connector, not a display connector.</pre>
+    <p><strong>Where each marker goes.</strong> The <code>...</code> general line and the <code>+</code> and <code>-</code> lines all belong directly under the question text, above the first answer choice. Once the answer choices start, a <code>...</code> line attaches to the choice above it instead. You can use any of them on their own; nothing is required.</p>
+
+    <p><strong>One rationale on every answer choice.</strong> When the same explanation should appear on all of the choices, write it once with <code>...*</code> under the question text. The converter copies it into the feedback box of every choice, so the student sees the rationale no matter which answer they picked:</p>
+    <pre>1. Which Medicare part covers inpatient hospital stays and skilled nursing facility care?
+...* Part A = hospital/facility insurance covering inpatient stays, SNF, hospice, and home health. Part B = outpatient/physician. Part C = Medicare Advantage. Part D = prescription drugs.
+*a) Part A
+b) Part B
+c) Part C
+d) Part D</pre>
+    <p>That produces the same result as typing the identical <code>...</code> line under all four choices. If one choice needs its own wording, give that choice a <code>...</code> line of its own; the specific line wins and the shared text fills in the rest.</p>
+
+    <p><strong>Other question types.</strong> Feedback works the same way everywhere:</p>
+    <pre>2. Select all storage devices.
+...  Storage keeps data when the power is off.
+[*] SSD
+...  Correct, an SSD stores data on flash memory.
+[ ] RAM
+...  RAM is volatile memory, so it clears at shutdown.
+[*] Hard drive
+
+3. The color of the sky is ____.
++    Correct.
+-    Look again at the section on light scattering.
+* blue
+* Blue
+
+4. Write an essay describing the boot process.
+...  Cover POST, the bootloader, and kernel handoff.
+___
+
+5. Match each medication route to its definition.
+...  Focus on where the medication enters the body.
++    Well done, all three routes matched correctly.
+-    Review the routes of administration table.
+= Sublingual -> Dissolved under the tongue
+...  Sub means under and lingual means tongue.
+= Intradermal -> Injected into the dermis layer of skin
+= Transdermal -> Absorbed through a patch on the skin</pre>
+    <p><strong>Rules:</strong></p>
+    <ul>
+      <li>Start the marker at the left margin. An indented feedback line is treated as part of the line above it.</li>
+      <li>A space after the marker is preferred, and the converter adds one for you if you type <code>...Correct</code> instead of <code>... Correct</code>.</li>
+      <li>Keep each piece of feedback on one line, and use one <code>...</code> line per answer choice.</li>
+      <li>Essay questions accept <code>...</code> only, since there is no right or wrong answer to score.</li>
+      <li>Feedback is optional. Add it to one question, a few answers, or none at all.</li>
+      <li>Because <code>-</code> starts an incorrect-answer feedback line, do not begin an ordinary line with a dash and a space unless you mean it as feedback.</li>
+      <li>Students see the feedback after the quiz according to the quiz settings in Canvas, so check <strong>Let Students See The Correct Answers</strong> and the response options when you publish.</li>
+    </ul>
 
     <h3>Fill in the Blank Format</h3>
     <p>Write the question with <code>____</code> (four underscores) where the blank should appear. Then list each accepted answer on its own line starting with <code>*</code>. Answers are case-sensitive unless you list both variants.</p>
@@ -330,11 +401,156 @@ class ValidationError(Exception):
 Q_START_RE = re.compile(r"^\s*(\d+)\.\s+(.*\S)\s*$")
 POINTS_RE = re.compile(r"^\s*Points\s*:\s*(\d+)\s*$", re.I)
 MC_OPT_RE = re.compile(r"^\s*\*?\s*([a-eA-E])\)\s+(.+?)\s*$")
-MA_OPT_RE = re.compile(r"^\s*\[(\*?)\]\s+(.+?)\s*$")
+# Multiple answers: "[*] correct option" / "[ ] incorrect option".
+# The space inside the brackets is optional, matching what text2qti accepts.
+MA_OPT_RE = re.compile(r"^\s*\[\s*(\*?)\s*\]\s+(.+?)\s*$")
 # Fill-in-the-blank: correct answer line starts with * followed by space + text
 FITB_ANS_RE = re.compile(r'^\s*\*\s+(.+?)\s*$')
 # Matching pair: lines starting with "= left -> right"
 MATCH_PAIR_RE = re.compile(r'^\s*=\s*(.+?)\s*->\s*(.+?)\s*$')
+
+# ---------------- Answer feedback ----------------
+# Feedback lines use the same markers text2qti understands. The marker has to
+# start at the left margin (no leading spaces) and be followed by a space:
+#   ...  text   general feedback for the question when it sits directly under
+#               the question text, or feedback for the ONE answer choice
+#               directly above it
+#   +    text   feedback shown when the student gets the question right
+#   -    text   feedback shown when the student gets the question wrong
+FEEDBACK_RE = re.compile(r'^(\.\.\.|\+|-)[ \t]+(\S.*?)\s*$')
+# Marker present but nothing written after it
+FEEDBACK_EMPTY_RE = re.compile(r'^(\.\.\.|\+|-)[ \t]*$')
+# One feedback line that applies to EVERY answer choice in the question:
+#   ...* text
+# Written once under the question text; the converter copies it beneath each
+# choice, which is what Canvas shows in the "Answer Feedback" box for each one.
+SHARED_FEEDBACK_RE = re.compile(r'^\.\.\.\*[ \t]*(\S.*?)\s*$')
+# Marker written flush against its text ("...text"). text2qti rejects that, so
+# the converter quietly inserts the space instead of making the instructor fix
+# every line by hand. A bare "-" is left alone so ordinary dashes and negative
+# numbers in a question are not mistaken for feedback.
+FEEDBACK_NOSPACE_RE = re.compile(r'^(\.\.\.\*|\.\.\.(?!\*)|\+)(?=\S)')
+
+FEEDBACK_LABELS = {"...": "general", "+": "correct-answer", "-": "incorrect-answer"}
+
+
+def is_answer_line(t: str) -> bool:
+    """True if the line is an answer option / essay blank / matching pair."""
+    return bool(
+        MC_OPT_RE.match(t)
+        or MA_OPT_RE.match(t)
+        or FITB_ANS_RE.match(t)
+        or MATCH_PAIR_RE.match(t)
+        or t.strip() in ("___", "____")
+    )
+
+
+def normalize_feedback_markers(text: str) -> str:
+    """
+    Cleans up the ways a feedback marker actually arrives from a real quiz file
+    before anything tries to read it:
+
+      * a leading byte-order mark from a file saved out of Word or Notepad
+      * the single ellipsis character Word and Google Docs autocorrect "..." into
+      * a marker typed flush against its text ("...Part A is hospital insurance")
+      * the shared marker typed with a space in it ("... * text")
+      * a feedback line that got indented, which would otherwise be swallowed
+        into the answer choice above it
+      * a non-breaking space after the marker
+
+    Feedback lines end up flush at the left margin with one space after the
+    marker, which is the only form text2qti reads.
+    """
+    if text.startswith("\ufeff"):
+        text = text[1:]
+
+    out = []
+    for ln in text.splitlines():
+        s = ln.lstrip(" \t\u00a0")
+
+        # Word and Google Docs replace three periods with one ellipsis glyph
+        if s[:1] == "\u2026":
+            s = "..." + s[1:]
+
+        if s.startswith("..."):
+            s = s.replace("\u00a0", " ")
+            # "... * text" typed with a space means the shared marker
+            m_shared = re.match(r'^\.\.\.[ \t]*\*[ \t]+(\S.*)$', s)
+            if m_shared:
+                s = "...* " + m_shared.group(1)
+            m_nospace = FEEDBACK_NOSPACE_RE.match(s)
+            if m_nospace:
+                marker = m_nospace.group(1)
+                s = marker + " " + s[len(marker):].strip()
+            # A feedback line belongs at the left margin, never indented
+            out.append(s)
+            continue
+
+        m = FEEDBACK_NOSPACE_RE.match(ln)
+        if m:
+            marker = m.group(1)
+            out.append(marker + " " + ln[len(marker):].strip())
+            continue
+
+        out.append(ln)
+    return "\n".join(out)
+
+
+def expand_shared_choice_feedback(text: str) -> str:
+    """
+    Turns a single "...* text" line under a question into a "... text" line
+    beneath every answer choice in that question, which is how Canvas fills in
+    the per-answer feedback box. A choice that already carries its own "..."
+    line keeps it; the shared text only fills the gaps.
+
+    Run this AFTER validation so reported line numbers match the source file.
+    """
+    lines = text.splitlines()
+    blocks = split_questions(lines)
+
+    drop: set = set()                 # 0-indexed lines to remove
+    insert_after: Dict[int, str] = {}  # 0-indexed line -> feedback to add below it
+
+    for b in blocks:
+        shared_text = None
+        for ln, t in b["block"]:
+            m = SHARED_FEEDBACK_RE.match(t)
+            if m:
+                shared_text = m.group(1)
+                drop.add(ln - 1)
+                break
+        if shared_text is None:
+            continue
+
+        block_lines = b["block"]
+        for i, (ln, t) in enumerate(block_lines):
+            if not is_answer_line(t):
+                continue
+            # Does this choice already have its own feedback line?
+            has_own = False
+            for _ln2, t2 in block_lines[i + 1:]:
+                if not t2.strip():
+                    continue
+                m2 = FEEDBACK_RE.match(t2)
+                has_own = bool(m2 and m2.group(1) == "...")
+                break
+            if not has_own:
+                insert_after[ln - 1] = shared_text
+
+    if not drop and not insert_after:
+        return text
+
+    print(f"Shared feedback: {len(drop)} \"...*\" line(s) copied onto {len(insert_after)} answer choice(s).")
+
+    out = []
+    for i, ln in enumerate(lines):
+        if i in drop:
+            continue
+        out.append(ln)
+        if i in insert_after:
+            out.append("... " + insert_after[i])
+    return "\n".join(out)
+
 
 def _urlquote(path: str) -> str:
     return urllib.parse.quote(path)
@@ -730,6 +946,116 @@ def detect_question_type(block: List[Tuple[int, str]]) -> str:
     return "unknown"
 
 
+def validate_feedback_block(b: Dict, qtype: str) -> List[str]:
+    """
+    Checks the feedback lines inside one question block. The rules mirror what
+    text2qti and Canvas actually accept, so the instructor gets a plain-English
+    message here instead of a cryptic converter error later.
+    """
+    errs: List[str] = []
+    seen_answer = False        # have any answer options appeared yet?
+    q_general = False          # question already has a "..." line
+    q_shared = False           # question already has a "...*" line
+    q_correct = False          # question already has a "+" line
+    q_incorrect = False        # question already has a "-" line
+    answer_has_feedback = False  # the answer directly above already has a "..." line
+
+    for ln, t in b["block"][1:]:
+        m_shared = SHARED_FEEDBACK_RE.match(t)
+        if m_shared:
+            if qtype == "essay":
+                errs.append(
+                    f"Line {ln}: Essay questions have no answer choices, so \"...*\" has nothing "
+                    f"to copy itself to. Use \"...\" for general feedback instead."
+                )
+            elif seen_answer:
+                errs.append(
+                    f"Line {ln}: \"...*\" shared feedback must sit directly under the question text, "
+                    f"above the answer choices."
+                )
+            elif q_shared:
+                errs.append(
+                    f"Line {ln}: This question already has a \"...*\" shared feedback line. "
+                    f"Use one per question."
+                )
+            q_shared = True
+            continue
+
+        m_empty = FEEDBACK_EMPTY_RE.match(t)
+        if m_empty:
+            marker = m_empty.group(1)
+            errs.append(
+                f"Line {ln}: The feedback marker \"{marker}\" has no text after it. "
+                f"Write the feedback on the same line, or delete the line."
+            )
+            continue
+
+        m = FEEDBACK_RE.match(t)
+        if m:
+            marker = m.group(1)
+
+            if marker == "...":
+                if seen_answer:
+                    if qtype == "essay":
+                        errs.append(
+                            f"Line {ln}: Essay feedback goes directly under the question text, "
+                            f"above the ___ line."
+                        )
+                    elif answer_has_feedback:
+                        errs.append(
+                            f"Line {ln}: That answer already has a feedback line. "
+                            f"Use one \"...\" line per answer."
+                        )
+                    answer_has_feedback = True
+                else:
+                    if q_general:
+                        errs.append(
+                            f"Line {ln}: This question already has general feedback. "
+                            f"Use one \"...\" line directly under the question text."
+                        )
+                    q_general = True
+            else:
+                label = FEEDBACK_LABELS[marker]
+                if qtype == "essay":
+                    errs.append(
+                        f"Line {ln}: Essay questions do not support \"{marker}\" {label} feedback, "
+                        f"because there is no right or wrong answer to score. "
+                        f"Use \"...\" for general feedback instead."
+                    )
+                elif seen_answer:
+                    errs.append(
+                        f"Line {ln}: \"{marker}\" {label} feedback must sit directly under the "
+                        f"question text, above the answer choices."
+                    )
+                elif (marker == "+" and q_correct) or (marker == "-" and q_incorrect):
+                    errs.append(
+                        f"Line {ln}: This question already has \"{marker}\" {label} feedback. "
+                        f"Use one \"{marker}\" line per question."
+                    )
+                if marker == "+":
+                    q_correct = True
+                else:
+                    q_incorrect = True
+            continue
+
+        if is_answer_line(t):
+            seen_answer = True
+            answer_has_feedback = False
+            continue
+
+        # A line that opens with the feedback marker but matched none of the
+        # patterns above would otherwise be dropped without a word
+        if t.lstrip(" \t\u00a0").startswith(("...", "\u2026")):
+            errs.append(
+                f"Line {ln}: This looks like a feedback line, but the converter cannot read it.\n"
+                f'Detected: "{t.strip()}"\n'
+                f"Fix: write it as \"... your feedback text\" for one answer, or "
+                f"\"...* your feedback text\" to put the same text on every answer."
+            )
+
+    return errs
+
+
 def validate_text(text: str) -> List[str]:
     errs: List[str] = []
     lines = text.splitlines()
@@ -750,6 +1076,19 @@ def validate_text(text: str) -> List[str]:
             )
         else:
             seen_nums[n] = b["qline_no"]
+    if errs:
+        return errs
+
+    # Feedback lines that appear before any question have nothing to attach to
+    for i, line in enumerate(lines[: blocks[0]["qline_idx"]]):
+        m = (FEEDBACK_RE.match(line) or SHARED_FEEDBACK_RE.match(line)
+             or FEEDBACK_EMPTY_RE.match(line))
+        if m:
+            errs.append(
+                f"Line {i + 1}: Feedback found before the first question. "
+                f"A feedback line has to sit underneath the question (or the answer) it belongs to.\n"
+                f'Detected: "{line.strip()}"'
+            )
     if errs:
         return errs
 
@@ -778,6 +1117,10 @@ def validate_text(text: str) -> List[str]:
                 make_context(lines, qline_idx),
             ]))
             continue
+
+        # Feedback lines are checked for every recognized question type
+        if qtype != "unknown":
+            errs.extend(validate_feedback_block(b, qtype))
 
         if qtype == "unknown":
             errs.append("\n".join([
@@ -874,11 +1217,27 @@ def _xml_escape(s: str) -> str:
              .replace("'", "&apos;"))
 
 
-def build_matching_item_xml(qtext: str, pairs: List[Tuple[str, str]], points: int = 1) -> str:
+def _feedback_html(text: str) -> str:
+    """Wrap a plain feedback line as escaped HTML for a QTI <mattext> block."""
+    return _xml_escape(f"<p>{text}</p>")
+
+
+def build_matching_item_xml(qtext: str, pairs: List[Tuple[str, str]], points: int = 1,
+                            feedback: str = None, correct_feedback: str = None,
+                            incorrect_feedback: str = None,
+                            pair_feedback: List[str] = None) -> str:
     """
     Generate a QTI 1.2 <item> XML block for a Canvas matching question.
     pairs = list of (left_term, right_match) tuples.
+
+    feedback            general comment shown to every student
+    correct_feedback    comment shown when every pair is matched correctly
+    incorrect_feedback  comment shown when at least one pair is wrong
+    pair_feedback       list the same length as pairs; each entry is the
+                        comment for that row, or None
     """
+    pair_feedback = list(pair_feedback or [])
+    pair_feedback += [None] * (len(pairs) - len(pair_feedback))
     item_id = "match_" + _uuid.uuid4().hex[:12]
 
     # Build response identifiers for each pair
@@ -925,6 +1284,15 @@ def build_matching_item_xml(qtext: str, pairs: List[Tuple[str, str]], points: in
     resprocessing_lines.append(f'        <decvar maxvalue="{points}" minvalue="0" varname="SCORE" vartype="Decimal"/>')
     resprocessing_lines.append('      </outcomes>')
 
+    # General feedback fires no matter what the student answers
+    if feedback:
+        resprocessing_lines.append('      <respcondition continue="Yes">')
+        resprocessing_lines.append('        <conditionvar>')
+        resprocessing_lines.append('          <other/>')
+        resprocessing_lines.append('        </conditionvar>')
+        resprocessing_lines.append('        <displayfeedback feedbacktype="Response" linkrefid="general_fb"/>')
+        resprocessing_lines.append('      </respcondition>')
+
     # One respcondition per pair: award (1/N * points) for each correct match
     per_pair_score = round(points / len(pairs), 4)
     for i, (left, right) in enumerate(pairs):
@@ -935,9 +1303,60 @@ def build_matching_item_xml(qtext: str, pairs: List[Tuple[str, str]], points: in
         resprocessing_lines.append(f'          <varequal respident="{lid}">{rid}</varequal>')
         resprocessing_lines.append('        </conditionvar>')
         resprocessing_lines.append(f'        <setvar action="Add" varname="SCORE">{per_pair_score}</setvar>')
+        if pair_feedback[i]:
+            resprocessing_lines.append(f'        <displayfeedback feedbacktype="Response" linkrefid="{lid}_fb"/>')
         resprocessing_lines.append('      </respcondition>')
 
+    # All pairs right / at least one wrong
+    if correct_feedback or incorrect_feedback:
+        all_correct = "\n".join(
+            f'            <varequal respident="{left_ids[i]}">{right_ids[right]}</varequal>'
+            for i, (_left, right) in enumerate(pairs)
+        )
+        if correct_feedback:
+            resprocessing_lines.append('      <respcondition continue="Yes">')
+            resprocessing_lines.append('        <conditionvar>')
+            resprocessing_lines.append('          <and>')
+            resprocessing_lines.append(all_correct)
+            resprocessing_lines.append('          </and>')
+            resprocessing_lines.append('        </conditionvar>')
+            resprocessing_lines.append('        <displayfeedback feedbacktype="Response" linkrefid="correct_fb"/>')
+            resprocessing_lines.append('      </respcondition>')
+        if incorrect_feedback:
+            resprocessing_lines.append('      <respcondition continue="Yes">')
+            resprocessing_lines.append('        <conditionvar>')
+            resprocessing_lines.append('          <not>')
+            resprocessing_lines.append('            <and>')
+            resprocessing_lines.append(all_correct)
+            resprocessing_lines.append('            </and>')
+            resprocessing_lines.append('          </not>')
+            resprocessing_lines.append('        </conditionvar>')
+            resprocessing_lines.append('        <displayfeedback feedbacktype="Response" linkrefid="general_incorrect_fb"/>')
+            resprocessing_lines.append('      </respcondition>')
+
     resprocessing_lines.append('    </resprocessing>')
+
+    # --- itemfeedback blocks ---
+    feedback_lines = []
+
+    def _add_itemfeedback(ident: str, text: str):
+        feedback_lines.append(f'    <itemfeedback ident="{ident}">')
+        feedback_lines.append('      <flow_mat>')
+        feedback_lines.append('        <material>')
+        feedback_lines.append(f'          <mattext texttype="text/html">{_feedback_html(text)}</mattext>')
+        feedback_lines.append('        </material>')
+        feedback_lines.append('      </flow_mat>')
+        feedback_lines.append('    </itemfeedback>')
+
+    if feedback:
+        _add_itemfeedback("general_fb", feedback)
+    if correct_feedback:
+        _add_itemfeedback("correct_fb", correct_feedback)
+    if incorrect_feedback:
+        _add_itemfeedback("general_incorrect_fb", incorrect_feedback)
+    for i, fb_text in enumerate(pair_feedback):
+        if fb_text:
+            _add_itemfeedback(f"{left_ids[i]}_fb", fb_text)
 
     # --- itemmetadata ---
     meta = f'''    <itemmetadata>
@@ -957,6 +1376,8 @@ def build_matching_item_xml(qtext: str, pairs: List[Tuple[str, str]], points: in
     item_xml += meta + "\n"
     item_xml += "\n".join(presentation_lines) + "\n"
     item_xml += "\n".join(resprocessing_lines) + "\n"
+    if feedback_lines:
+        item_xml += "\n".join(feedback_lines) + "\n"
     item_xml += "  </item>"
     return item_xml
 
@@ -984,12 +1405,36 @@ def extract_matching_blocks(text: str) -> Tuple[str, List[Dict]]:
             continue
 
         pairs = []
+        pair_feedback: List[str] = []   # one slot per pair, None when unused
         image_lines = []
+        general_fb = None
+        correct_fb = None
+        incorrect_fb = None
+
         for _, t in b["block"]:
             m = MATCH_PAIR_RE.match(t)
             if m:
                 pairs.append((m.group(1).strip(), m.group(2).strip()))
-            elif t.strip().startswith("!["):
+                pair_feedback.append(None)
+                continue
+
+            fb = FEEDBACK_RE.match(t)
+            if fb:
+                marker, fb_text = fb.group(1), fb.group(2)
+                if marker == "...":
+                    # After a pair it belongs to that pair; before the pairs it
+                    # is general feedback for the whole question.
+                    if pairs:
+                        pair_feedback[-1] = fb_text
+                    else:
+                        general_fb = fb_text
+                elif marker == "+":
+                    correct_fb = fb_text
+                else:
+                    incorrect_fb = fb_text
+                continue
+
+            if t.strip().startswith("!["):
                 # Image sitting on its own line under the matching stem. Only
                 # the first line of a question reaches qtext, so pull it in
                 # here or the picture would be silently dropped.
@@ -1004,6 +1449,10 @@ def extract_matching_blocks(text: str) -> Tuple[str, List[Dict]]:
             "qtext": qtext,
             "pairs": pairs,
             "points": b["points"] or 1,
+            "feedback": general_fb,
+            "correct_feedback": correct_fb,
+            "incorrect_feedback": incorrect_fb,
+            "pair_feedback": pair_feedback,
         })
 
         # Determine line range of this block
@@ -1098,7 +1547,15 @@ def inject_matching_into_zip(zip_bytes: bytes, matching_blocks: List[Dict], non_
 
     # Map question number -> matching item XML
     matching_map: Dict[int, str] = {
-        mb["qnum"]: build_matching_item_xml(mb["qtext"], mb["pairs"], mb["points"])
+        mb["qnum"]: build_matching_item_xml(
+            mb["qtext"],
+            mb["pairs"],
+            mb["points"],
+            feedback=mb.get("feedback"),
+            correct_feedback=mb.get("correct_feedback"),
+            incorrect_feedback=mb.get("incorrect_feedback"),
+            pair_feedback=mb.get("pair_feedback"),
+        )
         for mb in matching_blocks
     }
 
@@ -1260,12 +1717,16 @@ def run_text2qti_to_bytes(src: Path, original_name: str = "", image_dir: Path = 
         work_src = td / sanitize_filename(src.name)
         txt = src.read_text(encoding="utf-8", errors="ignore")
         txt = normalize_essays(txt)
+        txt = normalize_feedback_markers(txt)
         txt = indent_standalone_images(txt)
 
         # --- Validate full text first (including matching) ---
         val_errs = validate_text(txt)
         if val_errs:
             raise ValidationError("\n".join(val_errs[:10]))
+
+        # --- Copy any "...*" shared feedback onto each answer choice ---
+        txt = expand_shared_choice_feedback(txt)
 
         # --- Point local image references at the uploaded files ---
         txt, missing_images = resolve_local_images(txt, image_dir)
